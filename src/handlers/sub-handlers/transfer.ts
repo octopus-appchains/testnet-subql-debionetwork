@@ -7,7 +7,7 @@ import { DispatchedCallData } from '../types'
 import { AccountHandler } from './account'
 
 export class TransferHandler {
-  static async createFromCurrenciesModule ({ id, call, extrinsic, isSuccess } : DispatchedCallData) {
+  static async createFromCurrenciesModule({ id, call, extrinsic, isSuccess }: DispatchedCallData) {
     const args = call.args
     const extrinsicHandler = new ExtrinsicHandler(extrinsic)
 
@@ -16,8 +16,8 @@ export class TransferHandler {
     const from = extrinsicHandler.signer
     const extrinsicHash = extrinsicHandler.id
 
-    await AccountHandler.ensureAccount(to)
-    await AccountHandler.ensureAccount(from)
+    await AccountHandler.ensureAccount(to, extrinsic.block.timestamp)
+    await AccountHandler.ensureAccount(from, extrinsic.block.timestamp)
     await CallHandler.ensureCall(id)
 
     const transfer = new Transfer(id)

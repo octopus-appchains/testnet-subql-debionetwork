@@ -7,29 +7,12 @@ interface AccountData {
 
 export class AccountHandler {
 
-  static async ensureAccount (id: string) {
+  static async ensureAccount(id: string, timestamp: Date) {
     const account = await Account.get(id)
-
     if (!account) {
-      return new Account(id).save()
+      const newAccount = new Account(id);
+      newAccount.timestamp = timestamp;
+      return newAccount.save()
     }
-  }
-
-  static async getAccountById (id: string) {
-    await this.ensureAccount(id)
-
-    const account = await Account.get(id)
-
-    return account
-  }
-
-  static async updateAccount (id: string, data: Record<string, any>) {
-    const account = await this.getAccountById(id)
-
-    Object.keys(data).forEach((key, value) => {
-      account[key] = value
-    })
-
-    await account.save()
   }
 }

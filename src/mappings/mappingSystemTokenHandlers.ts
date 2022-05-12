@@ -1,6 +1,6 @@
 import { SubstrateExtrinsic, SubstrateEvent, SubstrateBlock } from "@subql/types";
 import { AccountId, Balance, BlockNumber } from '@polkadot/types/interfaces/runtime';
-import type { Compact} from '@polkadot/types';
+import type { Compact } from '@polkadot/types';
 import { SystemTokenTransfer } from "../types/models/SystemTokenTransfer";
 import { AccountHandler } from '../handlers/sub-handlers/account'
 import { ExtrinsicHandler } from '../handlers/extrinsic'
@@ -11,8 +11,8 @@ export async function systemTokenTransferEvent(event: SubstrateEvent): Promise<v
     const to = (to_origin as AccountId).toString();
     const amount = (amount_origin as Balance).toBigInt();
 
-    await AccountHandler.ensureAccount(from)
-    await AccountHandler.ensureAccount(to)
+    await AccountHandler.ensureAccount(from, event.block.timestamp)
+    await AccountHandler.ensureAccount(to, event.block.timestamp)
     const blockNumber = (event.extrinsic.block.block.header.number as Compact<BlockNumber>).toNumber();
 
     let record = new SystemTokenTransfer(blockNumber.toString() + '-' + event.idx.toString());

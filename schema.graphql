@@ -58,6 +58,7 @@ type Call @entity {
 
 type Account @entity {
   id: ID!
+  timestamp: Date!
 
   extrinsics: [Extrinsic] @derivedFrom(field: "signer")
   calls: [Call] @derivedFrom(field: "signer")

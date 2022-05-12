@@ -12,7 +12,7 @@ export class CallHandler {
   private extrinsic: SubstrateExtrinsic
   private dispatcher: CallDispatcher
 
-  static async ensureCall (id: string) {
+  static async ensureCall(id: string) {
     const call = await Call.get(id)
 
     if (!call) {
@@ -27,7 +27,7 @@ export class CallHandler {
     this.registerSubHandler()
   }
 
-  private registerSubHandler () {
+  private registerSubHandler() {
     this.dispatcher.batchRegist([
       {
         key: 'currencies-transfer',
@@ -47,7 +47,7 @@ export class CallHandler {
   private async traver(): Promise<Call[]> {
     const list = []
 
-    await AccountHandler.ensureAccount(this.signer)
+    await AccountHandler.ensureAccount(this.signer, this.extrinsic.block.timestamp);
     const extrinsic = new ExtrinsicHandler(this.extrinsic)
 
     const inner = async (
@@ -98,7 +98,7 @@ export class CallHandler {
         const temp = args[0] as unknown as Vec<AnyCall>
 
         await Promise.all(temp.map((item, idx) => inner(item, id, idx, false, depth + 1)))
-      } 
+      }
     }
 
     await inner(this.extrinsic.extrinsic.method, this.hash, 0, true, 0)
@@ -106,7 +106,7 @@ export class CallHandler {
     return list
   }
 
-  public async save () {
+  public async save() {
     const calls = await this.traver()
 
     await Promise.all(calls.map(async (item) => item.save()));

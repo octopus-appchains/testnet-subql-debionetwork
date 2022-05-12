@@ -10,7 +10,7 @@ export class ExtrinsicHandler {
 
   static async ensureExtrinsic(id: string): Promise<void> {
     const extrinsic = await Extrinsic.get(id)
-  
+
     if (!extrinsic) {
       await new Extrinsic(id).save()
     }
@@ -72,11 +72,11 @@ export class ExtrinsicHandler {
     return getBatchInterruptedIndex(this.extrinsic)
   }
 
-  public async save () {
+  public async save() {
     const record = new Extrinsic(this.id)
 
     await BlockHandler.ensureBlock(this.blockHash)
-    await AccountHandler.ensureAccount(this.signer)
+    await AccountHandler.ensureAccount(this.signer, this.extrinsic.block.timestamp)
 
     record.method = this.method
     record.section = this.section
