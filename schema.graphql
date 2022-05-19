@@ -63,21 +63,8 @@ type Account @entity {
   extrinsics: [Extrinsic] @derivedFrom(field: "signer")
   calls: [Call] @derivedFrom(field: "signer")
 
-  transferIn: [Transfer] @derivedFrom(field: "to")
-  transferOut: [Transfer] @derivedFrom(field: "from")
-}
-
-type Transfer @entity {
-  id: ID!
-
-  from: Account @index
-  to: Account @index
-  amount: BigInt @index
-
-  extrinsic: Extrinsic #create relation to extrinsic
-  call: Call #create relation to call
-  timestamp: Date @index
-  isSuccess: Boolean
+  transferIn: [SystemTokenTransfer] @derivedFrom(field: "to")
+  transferOut: [SystemTokenTransfer] @derivedFrom(field: "from")
 }
 
 type SystemTokenTransfer @entity {
