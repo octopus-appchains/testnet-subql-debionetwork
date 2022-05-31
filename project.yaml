@@ -1,6 +1,13 @@
-specVersion: 0.2.0
+specVersion: 1.0.0
 name: testnet-subql-debionetwork
 version: 0.0.4
+runner:
+  node:
+    name: "@subql/node"
+    version: ">=1.0.0"
+  query:
+    name: "@subql/query"
+    version: "*"
 description: This project can be use as a starting po...
 repository: https://github.com/octopus-appchains/testnet-subql-debionetwork.git
 schema:
