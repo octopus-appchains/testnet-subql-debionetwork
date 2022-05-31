@@ -26,5 +26,8 @@
   },
   "dependencies": {
     "lodash": "^4.17.21"
+  },
+  "resolutions": {
+    "ipfs-unixfs": "6.0.6"
   }
 }
