@@ -2,7 +2,7 @@ import type { Vec, u32 } from '@polkadot/types'
 import { EventRecord, DispatchError } from "@polkadot/types/interfaces";
 import { AccountId, Balance } from '@polkadot/types/interfaces/runtime';
 import { SubstrateExtrinsic, SubstrateBlock } from "@subql/types";
-import { Block, Event, Extrinsic, Call, Account, SystemTokenTransfer } from "../types";
+import { Block, Extrinsic, Call, Account } from "../types";
 import { AnyCall } from './types'
 import { IEvent } from '@polkadot/types/types'
 import _ from "lodash";
@@ -26,8 +26,6 @@ export async function handleBlock(block: SubstrateBlock): Promise<void> {
 
   const newExtrinsics = extrinsicWraps.map(({ newExtrinsic }) => newExtrinsic);
   const newCalls: Call[] = extrinsicWraps.reduce((cs, { newCalls }) => [...cs, ...newCalls], []);
-  const newEvents: Event[] = extrinsicWraps.reduce((es, { newEvents }) => [...es, ...newEvents], []);
-  const newSystemTokenTransfers: SystemTokenTransfer[] = extrinsicWraps.reduce((ss, { newSystemTokenTransfers }) => [...ss, ...newSystemTokenTransfers], []);
   const accounts: Account[] = _.uniqBy(extrinsicWraps.reduce((as, { accounts }) => [...as, ...accounts], []), "id");
 
   await newBlock.save();
@@ -44,8 +42,6 @@ export async function handleBlock(block: SubstrateBlock): Promise<void> {
 
   await Promise.all([
     store.bulkCreate("Call", newCalls),
-    store.bulkCreate("Event", newEvents),
-    store.bulkCreate("SystemTokenTransfer", newSystemTokenTransfers),
   ]);
 }
 
@@ -57,8 +53,6 @@ function handleExtrinsic(
 ): {
   newExtrinsic: Extrinsic,
   newCalls: Call[],
-  newEvents: Event[],
-  newSystemTokenTransfers: SystemTokenTransfer[],
   accounts: Account[]
 } {
   const extrinsicId = `${block.block.header.number}-${idx}`;
@@ -77,20 +71,7 @@ function handleExtrinsic(
   newExtrinsic.blockId = block.block.header.hash.toString();
 
   const newCalls = handleCalls(newExtrinsic, extrinsic);
-
-  const newEvents = [];
-  const newSystemTokenTransfers = [];
-  extrinsic.events
-    .forEach((evt, idx) => {
-      newEvents.push(handleEvent(block, extrinsic, evt, extrinsicId, startEvtIdx + idx));
-      if (evt.event.section === "balances" && evt.event.method === "Transfer") {
-        newSystemTokenTransfers.push(handleSystemTokenTransfer(block, extrinsic, evt, extrinsicId, startEvtIdx + idx));
-      }
-    });
-
-
   const accountIds = [newExtrinsic.signerId];
-  newSystemTokenTransfers.forEach(t => accountIds.push(t.fromId, t.toId));
 
   const accounts: Account[] = accountIds.map((aId) => {
     const account = new Account(aId);
@@ -98,7 +79,7 @@ function handleExtrinsic(
     return account;
   });
 
-  return { newExtrinsic, newCalls, newEvents, newSystemTokenTransfers, accounts };
+  return { newExtrinsic, newCalls, accounts };
 }
 
 function handleCalls(
@@ -125,7 +106,7 @@ function handleCalls(
     newCall.timestamp = extrinsic.timestamp
     newCall.isSuccess = depth === 0 ? extrinsic.isSuccess : getBatchInterruptedIndex(substrateExtrinsic) > idx;
 
-    newCall.signerId = substrateExtrinsic.extrinsic.signer.toString();
+    // newCall.signerId = substrateExtrinsic.extrinsic.signer.toString();
 
     if (!isRoot) {
       newCall.parentCallId = isRoot ? '' : parentCallId
@@ -143,47 +124,6 @@ function handleCalls(
 
   inner(substrateExtrinsic.extrinsic.method, extrinsic.id, 0, true, 0)
   return list;
-}
-
-function handleEvent(
-  block: SubstrateBlock,
-  extrinsic: SubstrateExtrinsic,
-  event: EventRecord,
-  extrinsicId: string,
-  idx: number,
-): Event {
-  const newEvent = new Event(`${block.block.header.number}-${idx}`);
-  newEvent.index = Number(event.event.index);
-  newEvent.section = event.event.section;
-  newEvent.method = event.event.method;
-  newEvent.data = JSON.stringify(event.event.data.toHuman());
-
-  newEvent.blockId = block.block.header.hash.toString();
-  newEvent.extrinsicId = extrinsicId;
-
-  return newEvent;
-}
-
-function handleSystemTokenTransfer(
-  block: SubstrateBlock,
-  extrinsic: SubstrateExtrinsic,
-  event: EventRecord,
-  extrinsicId: string,
-  idx: number,
-): SystemTokenTransfer {
-  const { event: { data: [from_origin, to_origin, amount_origin] } } = event;
-  const from = (from_origin as AccountId).toString();
-  const to = (to_origin as AccountId).toString();
-  const amount = (amount_origin as Balance).toBigInt();
-
-  let newSystemTokenTransfer = new SystemTokenTransfer(`${block.block.header.number.toString()}-${idx}`);
-  newSystemTokenTransfer.fromId = from;
-  newSystemTokenTransfer.toId = to;
-  newSystemTokenTransfer.amount = amount;
-  newSystemTokenTransfer.timestamp = block.timestamp;
-  newSystemTokenTransfer.extrinsicId = extrinsicId;
-
-  return newSystemTokenTransfer;
 }
 
 function wrapExtrinsics(wrappedBlock: SubstrateBlock): SubstrateExtrinsic[] {
