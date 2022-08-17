@@ -2,7 +2,7 @@ import type { Vec, u32 } from '@polkadot/types'
 import { EventRecord, DispatchError } from "@polkadot/types/interfaces";
 import { AccountId, Balance } from '@polkadot/types/interfaces/runtime';
 import { SubstrateExtrinsic, SubstrateBlock } from "@subql/types";
-import { Block, Event, Extrinsic, Call, Account, SystemTokenTransfer } from "../types";
+import { Block, Event, Extrinsic, Account, SystemTokenTransfer } from "../types";
 import { AnyCall } from './types'
 import { IEvent } from '@polkadot/types/types'
 import _ from "lodash";
@@ -25,7 +25,6 @@ export async function handleBlock(block: SubstrateBlock): Promise<void> {
   });
 
   const newExtrinsics = extrinsicWraps.map(({ newExtrinsic }) => newExtrinsic);
-  const newCalls: Call[] = extrinsicWraps.reduce((cs, { newCalls }) => [...cs, ...newCalls], []);
   const newEvents: Event[] = extrinsicWraps.reduce((es, { newEvents }) => [...es, ...newEvents], []);
   const newSystemTokenTransfers: SystemTokenTransfer[] = extrinsicWraps.reduce((ss, { newSystemTokenTransfers }) => [...ss, ...newSystemTokenTransfers], []);
   const accounts: Account[] = _.uniqBy(extrinsicWraps.reduce((as, { accounts }) => [...as, ...accounts], []), "id");
@@ -43,7 +42,6 @@ export async function handleBlock(block: SubstrateBlock): Promise<void> {
   await store.bulkCreate("Extrinsic", newExtrinsics);
 
   await Promise.all([
-    store.bulkCreate("Call", newCalls),
     store.bulkCreate("Event", newEvents),
     store.bulkCreate("SystemTokenTransfer", newSystemTokenTransfers),
   ]);
@@ -56,7 +54,6 @@ function handleExtrinsic(
   startEvtIdx: number,
 ): {
   newExtrinsic: Extrinsic,
-  newCalls: Call[],
   newEvents: Event[],
   newSystemTokenTransfers: SystemTokenTransfer[],
   accounts: Account[]
@@ -75,8 +72,6 @@ function handleExtrinsic(
   newExtrinsic.isSigned = extrinsic.extrinsic.isSigned;
   newExtrinsic.isSuccess = extrinsic.success;
   newExtrinsic.blockId = block.block.header.hash.toString();
-
-  const newCalls = handleCalls(newExtrinsic, extrinsic);
 
   const newEvents = [];
   const newSystemTokenTransfers = [];
@@ -98,51 +93,7 @@ function handleExtrinsic(
     return account;
   });
 
-  return { newExtrinsic, newCalls, newEvents, newSystemTokenTransfers, accounts };
-}
-
-function handleCalls(
-  extrinsic: Extrinsic,
-  substrateExtrinsic: SubstrateExtrinsic
-): Call[] {
-  const list = [];
-  const inner = async (
-    data: AnyCall,
-    parentCallId: string,
-    idx: number,
-    isRoot: boolean,
-    depth: number
-  ) => {
-    const id = isRoot ? parentCallId : `${parentCallId}-${idx}`
-    const section = data.section
-    const method = data.method
-    const args = data.args
-
-    const newCall = new Call(id)
-    newCall.section = section
-    newCall.method = method
-    newCall.args = JSON.stringify(args)
-    newCall.timestamp = extrinsic.timestamp
-    newCall.isSuccess = depth === 0 ? extrinsic.isSuccess : getBatchInterruptedIndex(substrateExtrinsic) > idx;
-
-    newCall.signerId = substrateExtrinsic.extrinsic.signer.toString();
-
-    if (!isRoot) {
-      newCall.parentCallId = isRoot ? '' : parentCallId
-    }
-
-    newCall.extrinsicId = extrinsic.id
-
-    list.push(newCall)
-
-    if (depth < 1 && section === 'utility' && (method === 'batch' || method === 'batchAll')) {
-      const temp = args[0] as unknown as Vec<AnyCall>
-      temp.forEach((item, idx) => inner(item, id, idx, false, depth + 1));
-    }
-  }
-
-  inner(substrateExtrinsic.extrinsic.method, extrinsic.id, 0, true, 0)
-  return list;
+  return { newExtrinsic, newEvents, newSystemTokenTransfers, accounts };
 }
 
 function handleEvent(
@@ -200,25 +151,4 @@ function wrapExtrinsics(wrappedBlock: SubstrateBlock): SubstrateExtrinsic[] {
         events.findIndex((evt) => evt.event.method === "ExtrinsicSuccess") > -1,
     };
   });
-}
-
-function getBatchInterruptedIndex(extrinsic: SubstrateExtrinsic): number {
-  const { events } = extrinsic
-  const interruptedEvent = events.find((event) => {
-    const _event = event?.event
-
-    if (!_event) return false
-
-    const { section, method } = _event
-
-    return section === 'utility' && method === 'BatchInterrupted'
-  })
-
-  if (interruptedEvent) {
-    const { data } = (interruptedEvent.event as unknown) as IEvent<[u32, DispatchError]>
-
-    return Number(data[0].toString())
-  }
-
-  return -1
 }

@@ -27,7 +27,6 @@ type Extrinsic @entity {
 
   block: Block #create relation to block
   events: [Event] @derivedFrom(field: "extrinsic")
-  calls: [Call] @derivedFrom(field: "extrinsic")
 }
 
 type Event @entity {
@@ -42,27 +41,11 @@ type Event @entity {
   extrinsic: Extrinsic #create relation to extrins
 }
 
-type Call @entity {
-  id: ID!
-
-  section: String @index
-  method: String @index
-  args: String
-  timestamp: Date @index
-  isSuccess: Boolean
-
-  signer: Account #create ration to account
-  extrinsic: Extrinsic #create relation to extrinsic
-  parentCall: Call #create relation to call
-  calls: [Call] @derivedFrom(field: "parentCall")
-}
-
 type Account @entity {
   id: ID!
   timestamp: Date!
 
   extrinsics: [Extrinsic] @derivedFrom(field: "signer")
-  calls: [Call] @derivedFrom(field: "signer")
 
   transferIn: [SystemTokenTransfer] @derivedFrom(field: "to")
   transferOut: [SystemTokenTransfer] @derivedFrom(field: "from")
