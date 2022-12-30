@@ -1,10 +1,10 @@
 specVersion: 1.0.0
 name: testnet-subql-debionetwork
-version: 0.0.4
+version: 1.0.0
 runner:
   node:
     name: "@subql/node"
-    version: ">=1.0.0"
+    version: ">=1.13.3"
   query:
     name: "@subql/query"
     version: "*"
